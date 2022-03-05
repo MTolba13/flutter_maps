@@ -1,7 +1,11 @@
 // ignore_for_file: must_be_immutable
 
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_maps/Business%20Logic/phone_auth/cubit/phone_auth_cubit.dart';
 import 'package:flutter_maps/Constants/colors.dart';
+import 'package:flutter_maps/Constants/strings.dart';
 
 class LoginScreen extends StatelessWidget {
   LoginScreen({Key? key}) : super(key: key);
@@ -51,7 +55,7 @@ class LoginScreen extends StatelessWidget {
             decoration: BoxDecoration(
               border: Border.all(color: MyColors.lightGrey),
               borderRadius: const BorderRadius.all(
-                Radius.circular(8),
+                Radius.circular(28),
               ),
             ),
             child: Text(
@@ -74,7 +78,7 @@ class LoginScreen extends StatelessWidget {
             decoration: BoxDecoration(
               border: Border.all(color: MyColors.blue),
               borderRadius: const BorderRadius.all(
-                Radius.circular(8),
+                Radius.circular(28),
               ),
             ),
             child: TextFormField(
@@ -113,11 +117,26 @@ class LoginScreen extends StatelessWidget {
     return flag;
   }
 
-  Widget buildNextButton() {
+  Future<void> register(BuildContext context) async {
+    if (!phoneFormKey.currentState!.validate()) {
+      Navigator.pop(context);
+      return;
+    } else {
+      Navigator.pop(context);
+      phoneFormKey.currentState!.save();
+      BlocProvider.of<PhoneAuthCubit>(context).sumbitPhoneNumber(phoneNumber);
+    }
+  }
+
+  Widget buildNextButton(context) {
     return Align(
       alignment: Alignment.centerRight,
       child: ElevatedButton(
-        onPressed: () {},
+        onPressed: () {
+          showProgressIndicator(context);
+
+          register(context);
+        },
         child: const Text(
           'Next',
           style: TextStyle(
@@ -129,9 +148,55 @@ class LoginScreen extends StatelessWidget {
             minimumSize: const Size(110, 50),
             primary: Colors.black,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(28),
             )),
       ),
+    );
+  }
+
+  void showProgressIndicator(context) {
+    AlertDialog alertDialog = const AlertDialog(
+      backgroundColor: Colors.transparent,
+      elevation: 3,
+      content: Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+        ),
+      ),
+    );
+    showDialog(
+        barrierColor: Colors.white.withOpacity(0),
+        barrierDismissible: false,
+        context: context,
+        builder: (context) {
+          return alertDialog;
+        });
+  }
+
+  Widget buildPhoneNumberSubmittedBloc() {
+    return BlocListener<PhoneAuthCubit, PhoneAuthState>(
+      listenWhen: (previous, current) {
+        return previous != current;
+      },
+      listener: (context, state) {
+        if (state is Loading) {
+          showProgressIndicator(context);
+        }
+        if (state is PhoneNumberSumbitted) {
+          Navigator.pop(context);
+          Navigator.of(context).pushNamed(otpScreen, arguments: phoneNumber);
+        }
+        if (state is ErrorOccurred) {
+          Navigator.pop(context);
+          String errorMsg = (state.errorMsg);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: Colors.black,
+            duration: const Duration(seconds: 3),
+          ));
+        }
+      },
+      child: Container(),
     );
   }
 
@@ -155,7 +220,8 @@ class LoginScreen extends StatelessWidget {
               const SizedBox(
                 height: 60,
               ),
-              buildNextButton(),
+              buildNextButton(context),
+              buildPhoneNumberSubmittedBloc(),
             ],
           ),
         ),
