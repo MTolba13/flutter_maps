@@ -4,14 +4,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_maps/Business%20Logic/phone_auth/cubit/phone_auth_cubit.dart';
+import 'package:flutter_maps/Business%20Logic/cubit/maps/maps_cubit.dart';
+import 'package:flutter_maps/Business%20Logic/cubit/phone_auth/cubit/phone_auth_cubit.dart';
 import 'package:flutter_maps/Constants/colors.dart';
-import 'package:flutter_maps/Constants/strings.dart';
+import 'package:flutter_maps/Data/models/placesuggestion.dart';
 import 'package:flutter_maps/Helpers/location_helper.dart';
 import 'package:flutter_maps/Presentation/widgets/my_drawer.dart';
+import 'package:flutter_maps/Presentation/widgets/place_item.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:material_floating_search_bar/material_floating_search_bar.dart';
+import 'package:uuid/uuid.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({Key? key}) : super(key: key);
@@ -22,6 +25,8 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   PhoneAuthCubit phoneAuthCubit = PhoneAuthCubit();
+
+  List<PlaceSuggestion> places = [];
 
   FloatingSearchBarController controller = FloatingSearchBarController();
 
@@ -95,7 +100,9 @@ class _MapScreenState extends State<MapScreen> {
         openAxisAlignment: 0,
         width: isPortrait ? 600 : 500,
         debounceDelay: const Duration(microseconds: 500),
-        onQueryChanged: (query) {},
+        onQueryChanged: (query) {
+          getPlacesSuggestions(query);
+        },
         onFocusChanged: (_) {},
         transition: CircularFloatingSearchBarTransition(),
         actions: [
@@ -116,15 +123,60 @@ class _MapScreenState extends State<MapScreen> {
               color: Colors.white,
               elevation: 4.0,
               child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: Colors.accents.map((color) {
-                  return Container(height: 112, color: color);
-                }).toList(),
-              ),
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children:
+                      // Colors.accents.map((color) {
+                      //   return Container(height: 112, color: color);
+                      // }).toList(),
+
+                      [
+                    buildSuggestionsBloc(),
+                  ]),
             ),
           );
         });
+  }
+
+// to avoid spending money in google maps.
+
+  void getPlacesSuggestions(String query) {
+    final sessionToken = const Uuid().v4();
+    BlocProvider.of<MapsCubit>(context)
+        .emitPlaceSuggestions(query, sessionToken);
+  }
+
+  Widget buildSuggestionsBloc() {
+    return BlocBuilder<MapsCubit, MapsState>(builder: (context, state) {
+      if (state is PlacesLoaded) {
+        places = (state).places;
+        if (places.isNotEmpty) {
+          return buildPlacesList();
+        } else {
+          return Container();
+        }
+      } else {
+        return Container();
+      }
+    });
+  }
+
+  Widget buildPlacesList() {
+    return ListView.builder(
+      itemBuilder: (ctx, index) {
+        return InkWell(
+          onTap: () {
+            controller.close();
+          },
+          child: PlaceItem(
+            suggestion: places[index],
+          ),
+        );
+      },
+      itemCount: places.length,
+      shrinkWrap: true,
+      physics: const ClampingScrollPhysics(),
+    );
   }
 
   @override
