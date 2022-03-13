@@ -4,7 +4,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_maps/Business%20Logic/phone_auth/cubit/phone_auth_cubit.dart';
+import 'package:flutter_maps/Business%20Logic/cubit/phone_auth/cubit/phone_auth_cubit.dart';
 import 'package:flutter_maps/Constants/colors.dart';
 import 'package:flutter_maps/Constants/strings.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
