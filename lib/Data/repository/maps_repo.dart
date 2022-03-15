@@ -1,7 +1,7 @@
+import 'package:flutter_maps/Data/models/place.dart';
 import 'package:flutter_maps/Data/webservices/placeswebservices.dart';
 
 import '../models/placesuggestion.dart';
-
 
 class MapsRepository {
   final PlacesWebservices placesWebservices;
@@ -15,5 +15,12 @@ class MapsRepository {
     return suggestions
         .map((suggestion) => PlaceSuggestion.fromjson(suggestion))
         .toList();
+  }
+
+  Future<Place> getPlaceLocation(String placeId, String sessionToken) async {
+    final place =
+        await placesWebservices.getPlaceLocation(placeId, sessionToken);
+
+    return Place.fromJson(place);
   }
 }

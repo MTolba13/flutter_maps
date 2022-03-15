@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_unnecessary_containers
+// ignore_for_file: avoid_unnecessary_containers, non_constant_identifier_names, prefer_collection_literals
 
 import 'dart:async';
 
@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_maps/Business%20Logic/cubit/maps/maps_cubit.dart';
 import 'package:flutter_maps/Business%20Logic/cubit/phone_auth/cubit/phone_auth_cubit.dart';
 import 'package:flutter_maps/Constants/colors.dart';
+import 'package:flutter_maps/Data/models/place.dart';
 import 'package:flutter_maps/Data/models/placesuggestion.dart';
 import 'package:flutter_maps/Helpers/location_helper.dart';
 import 'package:flutter_maps/Presentation/widgets/my_drawer.dart';
@@ -24,7 +25,7 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  PhoneAuthCubit phoneAuthCubit = PhoneAuthCubit();
+  // PhoneAuthCubit phoneAuthCubit = PhoneAuthCubit();
 
   List<PlaceSuggestion> places = [];
 
@@ -43,10 +44,26 @@ class _MapScreenState extends State<MapScreen> {
     zoom: 17,
   );
 
-  Future<void> getMyCurrentLocation() async {
-    position = await LocationHelper.getCurrentLocation().whenComplete(() {
-      setState(() {});
-    });
+// these variables for getPlaceLocation
+
+  Set<Marker> Markers = Set();
+  late PlaceSuggestion placeSuggestion;
+  late Place selectedPlace;
+  late Marker searchedPlaceMarker;
+  late Marker currentLocationMarker;
+  late CameraPosition goToSearchedForPlace;
+
+  void buildCameraNewPosition() {
+    goToSearchedForPlace = CameraPosition(
+      bearing: 0.0,
+      tilt: 0,
+      // lat & Lng from model
+      target: LatLng(
+        selectedPlace.result.geometry.location.lat,
+        selectedPlace.result.geometry.location.lng,
+      ),
+      zoom: 13,
+    );
   }
 
   @override
@@ -55,8 +72,15 @@ class _MapScreenState extends State<MapScreen> {
     getMyCurrentLocation();
   }
 
+  Future<void> getMyCurrentLocation() async {
+    position = await LocationHelper.getCurrentLocation().whenComplete(() {
+      setState(() {});
+    });
+  }
+
   Widget buildMap() {
     return GoogleMap(
+      markers: Markers,
       mapType: MapType.normal,
       myLocationButtonEnabled: false,
       zoomControlsEnabled: false,
@@ -132,10 +156,65 @@ class _MapScreenState extends State<MapScreen> {
 
                       [
                     buildSuggestionsBloc(),
+                    buildSelectedPlaceLocationBloc(),
                   ]),
             ),
           );
         });
+  }
+
+  Widget buildSelectedPlaceLocationBloc() {
+    return BlocListener<MapsCubit, MapsState>(
+      listener: (context, state) {
+        if (state is PlaceLocationLoaded) {
+          selectedPlace = state.place;
+          goToMySearchedForLocation();
+        }
+      },
+      child: Container(),
+    );
+  }
+
+  Future<void> goToMySearchedForLocation() async {
+    buildCameraNewPosition();
+    final GoogleMapController controller = await mapController.future;
+    controller
+        .animateCamera(CameraUpdate.newCameraPosition(goToSearchedForPlace));
+    buildSearchedPlaceMarker();
+  }
+
+  void buildSearchedPlaceMarker() {
+    searchedPlaceMarker = Marker(
+      markerId: const MarkerId('2'),
+      position: goToSearchedForPlace.target,
+      onTap: () {
+        buildCurrentLocationMarker();
+      },
+      infoWindow: InfoWindow(
+        title: placeSuggestion.description,
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+    );
+    addMarkerToMarkersAndUpdateUI(searchedPlaceMarker);
+  }
+
+  void buildCurrentLocationMarker() {
+    currentLocationMarker = Marker(
+      markerId: const MarkerId('1'),
+      position: LatLng(position!.latitude, position!.longitude),
+      onTap: () {},
+      infoWindow: const InfoWindow(
+        title: 'Your current Location',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+    );
+    addMarkerToMarkersAndUpdateUI(currentLocationMarker);
+  }
+
+  void addMarkerToMarkersAndUpdateUI(Marker marker) {
+    setState(() {
+      Markers.add(marker);
+    });
   }
 
 // to avoid spending money in google maps.
@@ -165,8 +244,10 @@ class _MapScreenState extends State<MapScreen> {
     return ListView.builder(
       itemBuilder: (ctx, index) {
         return InkWell(
-          onTap: () {
+          onTap: () async {
+            placeSuggestion = places[index];
             controller.close();
+            getSelectedPlaceLoction();
           },
           child: PlaceItem(
             suggestion: places[index],
@@ -177,6 +258,12 @@ class _MapScreenState extends State<MapScreen> {
       shrinkWrap: true,
       physics: const ClampingScrollPhysics(),
     );
+  }
+
+  void getSelectedPlaceLoction() {
+    final sessionToken = const Uuid().v4();
+    BlocProvider.of<MapsCubit>(context)
+        .emitPlaceLocation(placeSuggestion.placeId, sessionToken);
   }
 
   @override
