@@ -7,3 +7,5 @@ const suggestionsBaseUrl =
 
 const placeLocationBaseUrl =
     'https://maps.googleapis.com/maps/api/place/details/json';
+
+const directionsaseUrl = 'https://maps.googleapis.com/maps/api/directions/json';
